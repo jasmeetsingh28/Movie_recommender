@@ -3,6 +3,7 @@ import streamlit as st
 import requests
 import pandas as pd
 import numpy as np
+import joblib
 import sys
 
 def fetch_poster(movie_id):
@@ -16,31 +17,29 @@ def fetch_poster(movie_id):
 
 def load_data():
     try:
-        # First attempt: Direct loading
         st.write("Attempting to load files...")
+        
+        # Load movies data with pickle
         try:
             with open('movie_list.pkl', 'rb') as f:
                 movies = pickle.load(f)
-            with open('similarity.pkl', 'rb') as f:
-                similarity = pickle.load(f)
-            st.success("Files loaded successfully!")
-        except Exception as direct_error:
-            st.write(f"Direct loading failed: {direct_error}")
-            
-            # Second attempt: Using pickle protocol 4
-            st.write("Trying with pickle protocol 4...")
+            st.success("Movies list loaded successfully!")
+        except Exception as movies_error:
+            st.error(f"Error loading movies data: {movies_error}")
+            return None, None
+        
+        # Load similarity matrix with joblib
+        try:
+            # Try both filenames since we don't know which one you're using
             try:
-                with open('movie_list.pkl', 'rb') as f:
-                    pickle_data = f.read()
-                movies = pickle.loads(pickle_data)
-                
-                with open('similarity.pkl', 'rb') as f:
-                    pickle_data = f.read()
-                similarity = pickle.loads(pickle_data)
-                st.success("Files loaded successfully with protocol 4!")
-            except Exception as protocol_error:
-                st.write(f"Protocol 4 loading failed: {protocol_error}")
-                raise Exception("Failed to load with both methods")
+                similarity = joblib.load('similarity_compressed.pkl')
+                st.success("Compressed similarity matrix loaded successfully!")
+            except FileNotFoundError:
+                similarity = joblib.load('similarity.pkl')
+                st.success("Similarity matrix loaded successfully!")
+        except Exception as sim_error:
+            st.error(f"Error loading similarity matrix: {sim_error}")
+            return None, None
 
         # Convert to DataFrame if needed
         if isinstance(movies, dict):
@@ -57,6 +56,8 @@ def load_data():
         if isinstance(movies, pd.DataFrame):
             st.write(f"Number of movies: {len(movies)}")
             st.write("Sample columns:", list(movies.columns)[:5])
+            
+        st.write(f"Similarity matrix shape: {similarity.shape}")
 
         return movies, similarity
 
