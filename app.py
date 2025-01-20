@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 import joblib
 import sys
+import os
 
 def fetch_poster(movie_id):
     url = "https://api.themoviedb.org/3/movie/{}?api_key=8265bd1679663a7ea12ac168da84d2e8&language=en-US".format(
@@ -15,49 +16,79 @@ def fetch_poster(movie_id):
     full_path = "https://image.tmdb.org/t/p/w500/" + poster_path
     return full_path
 
+def verify_file_size(file_path):
+    """Verify if file exists and print its size"""
+    if os.path.exists(file_path):
+        size = os.path.getsize(file_path)
+        st.write(f"File {file_path} size: {size/1024/1024:.2f} MB")
+        return True
+    else:
+        st.error(f"File {file_path} not found!")
+        return False
+
+def load_similarity_matrix(file_path):
+    """Load similarity matrix with multiple attempts"""
+    try:
+        # First try: Direct joblib load
+        return joblib.load(file_path)
+    except Exception as e1:
+        st.write(f"First attempt failed: {e1}")
+        try:
+            # Second try: Load as numpy array
+            with open(file_path, 'rb') as f:
+                return np.load(f, allow_pickle=True)
+        except Exception as e2:
+            st.write(f"Second attempt failed: {e2}")
+            try:
+                # Third try: Load with pickle
+                with open(file_path, 'rb') as f:
+                    return pickle.load(f)
+            except Exception as e3:
+                st.write(f"Third attempt failed: {e3}")
+                return None
+
 def load_data():
     try:
         st.write("Attempting to load files...")
         
-        # Load movies data with pickle
+        # Verify files exist and show their sizes
+        movies_path = 'movie_list.pkl'
+        similarity_path = 'similarity_compressed.pkl' if os.path.exists('similarity_compressed.pkl') else 'similarity.pkl'
+        
+        if not (verify_file_size(movies_path) and verify_file_size(similarity_path)):
+            return None, None
+        
+        # Load movies data
         try:
-            with open('movie_list.pkl', 'rb') as f:
+            with open(movies_path, 'rb') as f:
                 movies = pickle.load(f)
             st.success("Movies list loaded successfully!")
         except Exception as movies_error:
             st.error(f"Error loading movies data: {movies_error}")
             return None, None
         
-        # Load similarity matrix with joblib
-        try:
-            # Try both filenames since we don't know which one you're using
-            try:
-                similarity = joblib.load('similarity_compressed.pkl')
-                st.success("Compressed similarity matrix loaded successfully!")
-            except FileNotFoundError:
-                similarity = joblib.load('similarity.pkl')
-                st.success("Similarity matrix loaded successfully!")
-        except Exception as sim_error:
-            st.error(f"Error loading similarity matrix: {sim_error}")
+        # Load similarity matrix
+        st.write(f"Attempting to load similarity matrix from {similarity_path}")
+        similarity = load_similarity_matrix(similarity_path)
+        
+        if similarity is None:
+            st.error("Failed to load similarity matrix with all attempts")
             return None, None
+        else:
+            st.success("Similarity matrix loaded successfully!")
 
         # Convert to DataFrame if needed
         if isinstance(movies, dict):
             movies = pd.DataFrame(movies)
         elif not isinstance(movies, pd.DataFrame):
-            st.write(f"Movies data type: {type(movies)}")
-            try:
-                movies = pd.DataFrame(movies)
-            except Exception as df_error:
-                st.write(f"Error converting to DataFrame: {df_error}")
+            movies = pd.DataFrame(movies)
 
         # Verify data
         st.write(f"Movies data type: {type(movies)}")
-        if isinstance(movies, pd.DataFrame):
-            st.write(f"Number of movies: {len(movies)}")
-            st.write("Sample columns:", list(movies.columns)[:5])
-            
+        st.write(f"Number of movies: {len(movies)}")
+        st.write("Sample columns:", list(movies.columns)[:5])
         st.write(f"Similarity matrix shape: {similarity.shape}")
+        st.write(f"Similarity matrix type: {type(similarity)}")
 
         return movies, similarity
 
