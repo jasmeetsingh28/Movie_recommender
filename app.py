@@ -3,6 +3,7 @@ import streamlit as st
 import requests
 import pandas as pd
 import numpy as np
+import sys
 
 def fetch_poster(movie_id):
     url = "https://api.themoviedb.org/3/movie/{}?api_key=8265bd1679663a7ea12ac168da84d2e8&language=en-US".format(
@@ -13,31 +14,55 @@ def fetch_poster(movie_id):
     full_path = "https://image.tmdb.org/t/p/w500/" + poster_path
     return full_path
 
-# Modified loading function with error handling
 def load_data():
     try:
-        # Try loading with different pickle protocols
-        for encoding in ['ascii', 'bytes', 'latin1']:
+        # First attempt: Direct loading
+        st.write("Attempting to load files...")
+        try:
+            with open('movie_list.pkl', 'rb') as f:
+                movies = pickle.load(f)
+            with open('similarity.pkl', 'rb') as f:
+                similarity = pickle.load(f)
+            st.success("Files loaded successfully!")
+        except Exception as direct_error:
+            st.write(f"Direct loading failed: {direct_error}")
+            
+            # Second attempt: Using pickle protocol 4
+            st.write("Trying with pickle protocol 4...")
             try:
-                # Load movies data
                 with open('movie_list.pkl', 'rb') as f:
-                    movies = pickle.load(f, encoding=encoding)
+                    pickle_data = f.read()
+                movies = pickle.loads(pickle_data)
                 
-                # Load similarity matrix
                 with open('similarity.pkl', 'rb') as f:
-                    similarity = pickle.load(f, encoding=encoding)
-                
-                # Convert to DataFrame if needed
-                if isinstance(movies, dict):
-                    movies = pd.DataFrame(movies)
-                
-                return movies, similarity
-            except Exception as e:
-                continue
-        
-        raise Exception("Could not load data with any encoding")
+                    pickle_data = f.read()
+                similarity = pickle.loads(pickle_data)
+                st.success("Files loaded successfully with protocol 4!")
+            except Exception as protocol_error:
+                st.write(f"Protocol 4 loading failed: {protocol_error}")
+                raise Exception("Failed to load with both methods")
+
+        # Convert to DataFrame if needed
+        if isinstance(movies, dict):
+            movies = pd.DataFrame(movies)
+        elif not isinstance(movies, pd.DataFrame):
+            st.write(f"Movies data type: {type(movies)}")
+            try:
+                movies = pd.DataFrame(movies)
+            except Exception as df_error:
+                st.write(f"Error converting to DataFrame: {df_error}")
+
+        # Verify data
+        st.write(f"Movies data type: {type(movies)}")
+        if isinstance(movies, pd.DataFrame):
+            st.write(f"Number of movies: {len(movies)}")
+            st.write("Sample columns:", list(movies.columns)[:5])
+
+        return movies, similarity
+
     except Exception as e:
         st.error(f"Error loading data: {e}")
+        st.write("Python version:", sys.version)
         return None, None
 
 def recommend(movie, movies, similarity):
