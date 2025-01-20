@@ -15,12 +15,13 @@ def fetch_poster(movie_id):
 
 # First, let's properly load and save the files in a compatible format
 def save_compressed_files():
-    try:
-        # Load and save movies data
+     # Load and save movies data
         with open('movie_list.pkl', 'rb') as f:
             movies_data = pickle.load(f)
         with open('movie_list_new.pkl', 'wb') as f:
             pickle.dump(movies_data, f, protocol=4)
+   
+       
             
         
 
