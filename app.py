@@ -22,30 +22,16 @@ def save_compressed_files():
         with open('movie_list_new.pkl', 'wb') as f:
             pickle.dump(movies_data, f, protocol=4)
             
-        # Load and save similarity matrix
-        with open('similarity.pkl', 'rb') as f:
-            similarity_data = pickle.load(f)
-        # Convert to float32 to reduce size
-        similarity_data = np.array(similarity_data, dtype=np.float32)
-        with open('similarity_new.pkl', 'wb') as f:
-            pickle.dump(similarity_data, f, protocol=4)
-            
-        return True
-    except Exception as e:
-        print(f"Error in saving compressed files: {e}")
-        return False
-
-# Try to save compressed versions first
-save_compressed_files()
+        
 
 # Now load the data
 try:
     # Load movies data
-    with open('movie_list_new.pkl', 'rb') as f:
+    with open('movie_list.pkl', 'rb') as f:
         movies = pickle.load(f)
     
     # Load similarity matrix
-    with open('similarity_new.pkl', 'rb') as f:
+    with open('similarity.pkl', 'rb') as f:
         similarity = pickle.load(f)
 
     # Convert to DataFrame if it's a dictionary
